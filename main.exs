@@ -12,18 +12,30 @@ defmodule GlobalDig do
     open_dns: "208.67.222.222",
     safe_dns: "195.46.39.39",
     quad9: "9.9.9.9",
-    bahnhof_se: "213.80.98.2", # Sweden
-    comodo_us: "8.26.56.26", # US
-    dinamic: "181.205.187.218", # Colombia
-    foxtel_net: "172.193.67.34", # Australia
-    singnet: "58.185.92.216", # Singapore
-    verisign_us: "64.6.64.6", # US
-    hinet_tw: "168.95.1.1", # Taiwan
-    securolytics_ca: "144.217.51.168", # Canada
-    uunet_ch: "195.129.12.122", # Switzerland
-    uunet_de: "192.76.144.66", # Germany
-    uunet_uk: "158.43.240.3", # UK
-    uunet_us: "198.6.100.25" # US
+    # Sweden
+    bahnhof_se: "213.80.98.2",
+    # US
+    comodo_us: "8.26.56.26",
+    # Colombia
+    dinamic: "181.205.187.218",
+    # Australia
+    foxtel_net: "172.193.67.34",
+    # Singapore
+    singnet: "58.185.92.216",
+    # US
+    verisign_us: "64.6.64.6",
+    # Taiwan
+    hinet_tw: "168.95.1.1",
+    # Canada
+    securolytics_ca: "144.217.51.168",
+    # Switzerland
+    uunet_ch: "195.129.12.122",
+    # Germany
+    uunet_de: "192.76.144.66",
+    # UK
+    uunet_uk: "158.43.240.3",
+    # US
+    uunet_us: "198.6.100.25"
   }
 
   def start(pid, domain) do
@@ -40,7 +52,7 @@ defmodule GlobalDig do
 
         wait()
     after
-      5000 -> IO.puts("")
+      5500 -> IO.puts("Check complete.")
     end
   end
 
@@ -48,13 +60,27 @@ defmodule GlobalDig do
     @dns_servers
     |> Enum.each(fn {name, ip} ->
       spawn(fn ->
-        {result, _status} =
-          System.cmd(
-            "dig",
-            ["+nocmd", "@#{ip}", "#{domain}", "+noall", "+answer"]
-          )
+        try do
+          task =
+            Task.async(fn ->
+              {result, _status} =
+                System.cmd(
+                  "dig",
+                  ["+nocmd", "@#{ip}", "#{domain}", "+noall", "+answer"]
+                )
 
-        send(pid, {:ok, name, result})
+              result
+            end)
+
+          result = Task.await(task, 5500)
+
+          send(pid, {:ok, name, result})
+        catch
+          :exit, _ ->
+            IO.puts(
+              "DNS #{Atom.to_string(name) |> String.upcase() |> String.replace("_", " ")} failed to resolve fast enough."
+            )
+        end
       end)
     end)
   end
